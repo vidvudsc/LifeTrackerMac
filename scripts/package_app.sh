@@ -66,6 +66,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
   <string>14.0</string>
   <key>LSMultipleInstancesProhibited</key>
   <true/>
+  <key>LSUIElement</key>
+  <true/>
   <key>NSHighResolutionCapable</key>
   <true/>
 </dict>
