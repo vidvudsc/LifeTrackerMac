@@ -62,8 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ActivityStore.shared.reloadFromDisk()
         ActivityStore.shared.start()
         statusBarController = StatusBarController()
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.setActivationPolicy(.accessory)
     }
 
     func applicationWillTerminate(_ notification: Notification) {

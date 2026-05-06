@@ -4,6 +4,7 @@ import SwiftUI
 struct MenuBarView: View {
     @EnvironmentObject private var store: ActivityStore
     @Environment(\.openWindow) private var openWindow
+    @State private var hoveredHourID: Date?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -70,12 +71,22 @@ struct MenuBarView: View {
     }
 
     private var hourlyStrip: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let values = store.hourlyEnergyPoints()
+        let maxScore = max(values.map(\.score).max() ?? 1, 1)
+        let hoveredPoint = values.first { $0.id == hoveredHourID }
+
+        return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Today rhythm")
                     .font(.caption.weight(.bold))
                 Spacer()
-                if let latest = store.stats.latestActivity {
+                if let hoveredPoint {
+                    Text(menuHourSummary(hoveredPoint))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(AppTheme.lilac)
+                        .lineLimit(1)
+                        .monospacedDigit()
+                } else if let latest = store.stats.latestActivity {
                     Text(LTFormat.relative(latest))
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
@@ -83,17 +94,27 @@ struct MenuBarView: View {
             }
 
             HStack(alignment: .bottom, spacing: 4) {
-                let values = store.hourlyEnergyPoints()
-                let maxScore = max(values.map(\.score).max() ?? 1, 1)
                 ForEach(values) { point in
-                    let ratio = point.score <= 0 ? 0 : point.score / maxScore
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(point.score <= 0 ? AppTheme.energyQuiet : AppTheme.lilac)
-                        .frame(height: point.score <= 0 ? 5 : max(8, CGFloat(ratio) * 34))
-                        .help(point.helpText)
+                    MenuHourBar(
+                        point: point,
+                        maxScore: maxScore,
+                        isHovered: hoveredHourID == point.id
+                    ) { isHovered in
+                        hoveredHourID = isHovered ? point.id : nil
+                    }
                 }
             }
             .frame(height: 38, alignment: .bottom)
+
+            HStack(spacing: 0) {
+                Text(hoveredPoint.map(menuHourDetail) ?? "Hover a bar for hour, coding time, files, and activity.")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(hoveredPoint == nil ? .secondary : .primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                Spacer(minLength: 0)
+            }
+            .frame(height: 12)
         }
         .padding(12)
         .background(MenuBarTheme.card, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -101,6 +122,14 @@ struct MenuBarView: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(MenuBarTheme.line)
         }
+    }
+
+    private func menuHourSummary(_ point: HourlyEnergyPoint) -> String {
+        "\(point.hourLabel) · \(point.energyValue)"
+    }
+
+    private func menuHourDetail(_ point: HourlyEnergyPoint) -> String {
+        "\(point.hourLabel) · \(LTFormat.minutes(point.minutes)) · \(point.events) events · \(point.files) files"
     }
 
     private var focusRows: some View {
@@ -226,6 +255,39 @@ struct MenuStatCard: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(MenuBarTheme.line)
         }
+    }
+}
+
+struct MenuHourBar: View {
+    var point: HourlyEnergyPoint
+    var maxScore: Double
+    var isHovered: Bool
+    var onHover: (Bool) -> Void
+
+    var body: some View {
+        let ratio = point.score <= 0 ? 0 : min(1, point.score / maxScore)
+        let height = point.score <= 0 ? 5 : max(8, CGFloat(ratio) * 34)
+
+        VStack(spacing: 3) {
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(point.score <= 0 ? AppTheme.energyQuiet : AppTheme.lilac)
+                .frame(height: height)
+                .overlay {
+                    if isHovered {
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .stroke(AppTheme.lilac.opacity(0.95), lineWidth: 1)
+                    }
+                }
+                .shadow(color: AppTheme.lilac.opacity(isHovered && point.score > 0 ? 0.35 : 0), radius: 5, y: 1)
+
+            RoundedRectangle(cornerRadius: 1, style: .continuous)
+                .fill(isHovered ? AppTheme.lilac : Color.clear)
+                .frame(height: 2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: 38, alignment: .bottom)
+        .contentShape(Rectangle())
+        .onHover(perform: onHover)
+        .help(point.helpText)
     }
 }
 
