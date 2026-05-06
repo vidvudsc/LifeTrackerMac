@@ -70,10 +70,7 @@ struct MenuBarView: View {
     }
 
     private var hourlyStrip: some View {
-        MenuHourlyStrip(
-            values: store.hourlyEnergyPoints(),
-            latestActivity: store.stats.latestActivity
-        )
+        MenuHourlyStrip(values: store.hourlyEnergyPoints())
     }
 
     private var focusRows: some View {
@@ -204,7 +201,6 @@ struct MenuStatCard: View {
 
 struct MenuHourlyStrip: View {
     var values: [HourlyEnergyPoint]
-    var latestActivity: Date?
 
     @State private var hoveredHourID: Date?
 
@@ -223,10 +219,6 @@ struct MenuHourlyStrip: View {
                         .foregroundStyle(AppTheme.lilac)
                         .lineLimit(1)
                         .monospacedDigit()
-                } else if let latestActivity {
-                    Text(LTFormat.relative(latestActivity))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
                 }
             }
 

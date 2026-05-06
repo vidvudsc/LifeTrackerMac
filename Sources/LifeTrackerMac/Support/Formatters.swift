@@ -3,8 +3,7 @@ import Foundation
 enum LTFormat {
     static let time: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
+        formatter.dateFormat = "HH:mm"
         return formatter
     }()
 
@@ -28,7 +27,7 @@ enum LTFormat {
 
     static let hour: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "ha"
+        formatter.dateFormat = "HH:mm"
         return formatter
     }()
 
