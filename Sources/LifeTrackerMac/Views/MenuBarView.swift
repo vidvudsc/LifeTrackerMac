@@ -4,7 +4,6 @@ import SwiftUI
 struct MenuBarView: View {
     @EnvironmentObject private var store: ActivityStore
     @Environment(\.openWindow) private var openWindow
-    @State private var hoveredHourID: Date?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -71,65 +70,10 @@ struct MenuBarView: View {
     }
 
     private var hourlyStrip: some View {
-        let values = store.hourlyEnergyPoints()
-        let maxScore = max(values.map(\.score).max() ?? 1, 1)
-        let hoveredPoint = values.first { $0.id == hoveredHourID }
-
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Today rhythm")
-                    .font(.caption.weight(.bold))
-                Spacer()
-                if let hoveredPoint {
-                    Text(menuHourSummary(hoveredPoint))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(AppTheme.lilac)
-                        .lineLimit(1)
-                        .monospacedDigit()
-                } else if let latest = store.stats.latestActivity {
-                    Text(LTFormat.relative(latest))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            HStack(alignment: .bottom, spacing: 4) {
-                ForEach(values) { point in
-                    MenuHourBar(
-                        point: point,
-                        maxScore: maxScore,
-                        isHovered: hoveredHourID == point.id
-                    ) { isHovered in
-                        hoveredHourID = isHovered ? point.id : nil
-                    }
-                }
-            }
-            .frame(height: 38, alignment: .bottom)
-
-            HStack(spacing: 0) {
-                Text(hoveredPoint.map(menuHourDetail) ?? "Hover a bar for hour, coding time, files, and activity.")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(hoveredPoint == nil ? .secondary : .primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-                Spacer(minLength: 0)
-            }
-            .frame(height: 12)
-        }
-        .padding(12)
-        .background(MenuBarTheme.card, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(MenuBarTheme.line)
-        }
-    }
-
-    private func menuHourSummary(_ point: HourlyEnergyPoint) -> String {
-        "\(point.hourLabel) · \(point.energyValue)"
-    }
-
-    private func menuHourDetail(_ point: HourlyEnergyPoint) -> String {
-        "\(point.hourLabel) · \(LTFormat.minutes(point.minutes)) · \(point.events) events · \(point.files) files"
+        MenuHourlyStrip(
+            values: store.hourlyEnergyPoints(),
+            latestActivity: store.stats.latestActivity
+        )
     }
 
     private var focusRows: some View {
@@ -258,6 +202,82 @@ struct MenuStatCard: View {
     }
 }
 
+struct MenuHourlyStrip: View {
+    var values: [HourlyEnergyPoint]
+    var latestActivity: Date?
+
+    @State private var hoveredHourID: Date?
+
+    var body: some View {
+        let maxScore = max(values.map(\.score).max() ?? 1, 1)
+        let hoveredPoint = values.first { $0.id == hoveredHourID }
+
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Today rhythm")
+                    .font(.caption.weight(.bold))
+                Spacer()
+                if let hoveredPoint {
+                    Text(menuHourSummary(hoveredPoint))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(AppTheme.lilac)
+                        .lineLimit(1)
+                        .monospacedDigit()
+                } else if let latestActivity {
+                    Text(LTFormat.relative(latestActivity))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            HStack(alignment: .bottom, spacing: 4) {
+                ForEach(values) { point in
+                    MenuHourBar(
+                        point: point,
+                        maxScore: maxScore,
+                        isHovered: hoveredHourID == point.id
+                    ) { isHovered in
+                        let nextID = isHovered ? point.id : nil
+                        if hoveredHourID != nextID {
+                            hoveredHourID = nextID
+                        }
+                    }
+                }
+            }
+            .frame(height: 38, alignment: .bottom)
+
+            if let hoveredPoint {
+                Text(menuHourDetail(hoveredPoint))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                    .frame(height: 12, alignment: .leading)
+            } else {
+                Color.clear
+                    .frame(height: 12)
+            }
+        }
+        .padding(12)
+        .background(MenuBarTheme.card, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(MenuBarTheme.line)
+        }
+        .transaction { transaction in
+            transaction.animation = nil
+        }
+    }
+
+    private func menuHourSummary(_ point: HourlyEnergyPoint) -> String {
+        "\(point.hourLabel) · \(point.energyValue)"
+    }
+
+    private func menuHourDetail(_ point: HourlyEnergyPoint) -> String {
+        "\(point.hourLabel) · \(LTFormat.minutes(point.minutes)) · \(point.events) events · \(point.files) files"
+    }
+}
+
 struct MenuHourBar: View {
     var point: HourlyEnergyPoint
     var maxScore: Double
@@ -287,7 +307,6 @@ struct MenuHourBar: View {
         .frame(maxWidth: .infinity, maxHeight: 38, alignment: .bottom)
         .contentShape(Rectangle())
         .onHover(perform: onHover)
-        .help(point.helpText)
     }
 }
 
