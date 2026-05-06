@@ -3,6 +3,8 @@ import SwiftUI
 
 @MainActor
 final class StatusBarController: NSObject {
+    private static weak var current: StatusBarController?
+
     private var item: NSStatusItem?
     private let store: ActivityStore
     private let popover = NSPopover()
@@ -11,25 +13,22 @@ final class StatusBarController: NSObject {
     init(store: ActivityStore = .shared) {
         self.store = store
         super.init()
+        Self.current = self
         installStatusItem()
         configurePopover()
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(hideStatusItem),
-            name: .lifeTrackerHideStatusItem,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(showStatusItem),
-            name: .lifeTrackerShowStatusItem,
-            object: nil
-        )
         updateTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.update()
             }
         }
+    }
+
+    static func hideCurrentItem() {
+        current?.hideStatusItem()
+    }
+
+    static func showCurrentItem() {
+        current?.installStatusItem()
     }
 
     private func installStatusItem() {
@@ -104,16 +103,14 @@ final class StatusBarController: NSObject {
         }
     }
 
-    @objc private func hideStatusItem() {
+    private func hideStatusItem() {
         popover.performClose(nil)
         guard let item else {
             return
         }
+        item.isVisible = false
         NSStatusBar.system.removeStatusItem(item)
         self.item = nil
     }
 
-    @objc private func showStatusItem() {
-        installStatusItem()
-    }
 }

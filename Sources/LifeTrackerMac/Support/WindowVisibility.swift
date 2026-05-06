@@ -6,13 +6,14 @@ enum WindowVisibility {
         for window in NSApp.windows where window.title.contains("LifeTracker") {
             window.orderOut(nil)
         }
+        StatusBarController.hideCurrentItem()
+        NSApp.hide(nil)
         NSApp.setActivationPolicy(.accessory)
-        NotificationCenter.default.post(name: .lifeTrackerHideStatusItem, object: nil)
     }
 
     static func showDashboard() {
         ActivityStore.shared.reloadFromDisk()
-        NotificationCenter.default.post(name: .lifeTrackerShowStatusItem, object: nil)
+        StatusBarController.showCurrentItem()
         NSApp.setActivationPolicy(.regular)
         for window in NSApp.windows where window.title.contains("LifeTracker") {
             window.makeKeyAndOrderFront(nil)
