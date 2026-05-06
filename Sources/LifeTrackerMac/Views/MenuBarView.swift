@@ -4,6 +4,7 @@ import SwiftUI
 struct MenuBarView: View {
     @EnvironmentObject private var store: ActivityStore
     @Environment(\.openWindow) private var openWindow
+    var dismissPopover: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -140,7 +141,10 @@ struct MenuBarView: View {
             HStack(spacing: 8) {
                 MenuActionButton(title: "Dashboard", systemImage: "rectangle.grid.2x2") {
                     openWindow(id: "main")
-                    WindowVisibility.showDashboard()
+                    DispatchQueue.main.async {
+                        WindowVisibility.showDashboard()
+                        dismissPopover()
+                    }
                 }
 
                 MenuActionButton(title: store.isTracking ? "Pause" : "Start", systemImage: store.isTracking ? "pause.fill" : "play.fill") {
@@ -151,6 +155,7 @@ struct MenuBarView: View {
             HStack(spacing: 8) {
                 MenuActionButton(title: "Hide", systemImage: "eye.slash") {
                     WindowVisibility.hideDashboard()
+                    dismissPopover()
                 }
 
                 MenuActionButton(title: "Quit", systemImage: "power") {

@@ -7,7 +7,7 @@ struct LifeTrackerMacApp: App {
     @StateObject private var store = ActivityStore.shared
 
     var body: some Scene {
-        WindowGroup("LifeTracker", id: "main") {
+        Window("LifeTracker", id: "main") {
             ContentView()
                 .environmentObject(store)
                 .frame(minWidth: 1040, minHeight: 680)

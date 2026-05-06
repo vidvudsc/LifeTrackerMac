@@ -41,7 +41,9 @@ final class StatusBarController: NSObject {
         popover.animates = true
         popover.contentSize = NSSize(width: 340, height: 500)
         popover.contentViewController = NSHostingController(
-            rootView: MenuBarView()
+            rootView: MenuBarView(dismissPopover: { [weak self] in
+                self?.closePopover()
+            })
                 .environmentObject(store)
         )
     }
