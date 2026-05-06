@@ -61,10 +61,12 @@ final class StatusBarController: NSObject {
         let url = Bundle.module.url(forResource: "searchIcon", withExtension: "png")
             ?? Bundle.main.url(forResource: "searchIcon", withExtension: "png")
         guard let url, let image = NSImage(contentsOf: url) else {
-            return NSImage(systemSymbolName: "magnifyingglass.circle.fill", accessibilityDescription: "LifeTracker")
+            let fallback = NSImage(systemSymbolName: "magnifyingglass.circle.fill", accessibilityDescription: "LifeTracker")
+            fallback?.isTemplate = true
+            return fallback
         }
         image.size = NSSize(width: 20, height: 20)
-        image.isTemplate = false
+        image.isTemplate = true
         return image
     }
 
