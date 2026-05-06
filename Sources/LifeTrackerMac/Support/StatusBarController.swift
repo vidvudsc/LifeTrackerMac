@@ -3,18 +3,28 @@ import SwiftUI
 
 @MainActor
 final class StatusBarController: NSObject {
-    private let item: NSStatusItem
+    private var item: NSStatusItem?
     private let store: ActivityStore
     private let popover = NSPopover()
     private var updateTimer: Timer?
 
     init(store: ActivityStore = .shared) {
         self.store = store
-        item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
-        configureButton()
+        installStatusItem()
         configurePopover()
-        update()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(hideStatusItem),
+            name: .lifeTrackerHideStatusItem,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(showStatusItem),
+            name: .lifeTrackerShowStatusItem,
+            object: nil
+        )
         updateTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.update()
@@ -22,8 +32,18 @@ final class StatusBarController: NSObject {
         }
     }
 
+    private func installStatusItem() {
+        guard item == nil else {
+            update()
+            return
+        }
+        item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        configureButton()
+        update()
+    }
+
     private func configureButton() {
-        guard let button = item.button else {
+        guard let button = item?.button else {
             return
         }
         button.title = "LT"
@@ -45,7 +65,7 @@ final class StatusBarController: NSObject {
     }
 
     private func update() {
-        guard let button = item.button else {
+        guard let button = item?.button else {
             return
         }
         let stats = store.stats
@@ -73,7 +93,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func togglePopover() {
-        guard let button = item.button else {
+        guard let button = item?.button else {
             return
         }
         if popover.isShown {
@@ -82,5 +102,18 @@ final class StatusBarController: NSObject {
             update()
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
+    }
+
+    @objc private func hideStatusItem() {
+        popover.performClose(nil)
+        guard let item else {
+            return
+        }
+        NSStatusBar.system.removeStatusItem(item)
+        self.item = nil
+    }
+
+    @objc private func showStatusItem() {
+        installStatusItem()
     }
 }
