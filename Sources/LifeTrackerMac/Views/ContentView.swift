@@ -2,46 +2,21 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var store: ActivityStore
-    @State private var selection: SectionID? = .overview
 
     var body: some View {
-        ScrollViewReader { proxy in
-            NavigationSplitView {
-                SidebarView(selection: $selection)
-            } detail: {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 18) {
-                        HeaderView()
-                        VStack(alignment: .leading, spacing: 18) {
-                            MetricsGrid()
-                            OverviewGrid()
-                        }
-                        .id(SectionID.overview)
-                        TimelineSection()
-                            .id(SectionID.timeline)
-                        AppsSection()
-                            .id(SectionID.apps)
-                        ProjectsSection()
-                            .id(SectionID.projects)
-                    }
-                    .padding(24)
-                }
-                .background(AppTheme.background)
-                .onChange(of: selection) { _, newValue in
-                    guard let newValue else {
-                        return
-                    }
-                    scroll(to: newValue, proxy: proxy)
-                }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                HeaderView()
+                MetricsGrid()
+                OverviewGrid()
+                AppsSection()
+                TimelineSection()
             }
+            .padding(22)
+            .frame(maxWidth: 1180, alignment: .top)
         }
-    }
-
-    private func scroll(to section: SectionID, proxy: ScrollViewProxy) {
-        selection = section
-        withAnimation(.snappy(duration: 0.28)) {
-            proxy.scrollTo(section, anchor: .top)
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppTheme.background)
     }
 }
 
@@ -66,23 +41,24 @@ enum SectionID: String, CaseIterable, Identifiable {
 enum AppTheme {
     static let background = LinearGradient(
         colors: [
-            Color(red: 0.035, green: 0.043, blue: 0.063),
-            Color(red: 0.055, green: 0.071, blue: 0.102)
+            Color(red: 0.055, green: 0.052, blue: 0.066),
+            Color(red: 0.025, green: 0.027, blue: 0.034)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
-    static let panel = Color.white.opacity(0.055)
-    static let panelStrong = Color.white.opacity(0.08)
-    static let panelRaised = Color.white.opacity(0.11)
-    static let line = Color.white.opacity(0.10)
+    static let panel = Color.white.opacity(0.075)
+    static let panelStrong = Color.white.opacity(0.105)
+    static let panelRaised = Color.white.opacity(0.130)
+    static let line = Color.white.opacity(0.105)
     static let green = Color(red: 0.36, green: 0.88, blue: 0.64)
-    static let blue = Color(red: 0.43, green: 0.66, blue: 1.0)
-    static let amber = Color(red: 0.95, green: 0.72, blue: 0.37)
-    static let energyBar = Color(red: 0.88, green: 0.58, blue: 0.35)
-    static let energyQuiet = Color.white.opacity(0.12)
-    static let meterFill = Color(red: 0.78, green: 0.62, blue: 0.44)
+    static let amber = Color(red: 0.98, green: 0.67, blue: 0.34)
+    static let coral = Color(red: 0.90, green: 0.42, blue: 0.48)
+    static let lilac = Color(red: 0.78, green: 0.58, blue: 0.88)
+    static let energyBar = Color(red: 0.78, green: 0.58, blue: 0.88)
+    static let energyQuiet = Color.white.opacity(0.080)
+    static let meterFill = Color(red: 0.78, green: 0.58, blue: 0.88)
     static let meterTrack = Color.white.opacity(0.075)
     static let red = Color(red: 1.0, green: 0.43, blue: 0.40)
 }

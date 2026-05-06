@@ -5,16 +5,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="$ROOT/.build/arm64-apple-macosx/release"
 APP_DIR="$ROOT/dist/LifeTracker.app"
 ICON_SRC="$ROOT/Sources/LifeTrackerMac/Resources/iconLife.png"
-ICON_LAYER="$HOME/Downloads/icon.png"
 ICONSET="$ROOT/.build/iconLife.iconset"
 ICNS="$ROOT/.build/iconLife.icns"
 
 cd "$ROOT"
-if [[ -r "$ICON_LAYER" ]]; then
-  swift scripts/render_icon.swift "$ICON_LAYER" "$ICON_SRC"
-else
-  echo "Keeping existing app icon: $ICON_LAYER not found"
-fi
+swift scripts/render_icon.swift "$ICON_SRC"
 
 if [[ -r "$HOME/Downloads/search icon.png" ]]; then
   swift scripts/crop_search_icon.swift "$HOME/Downloads/search icon.png" "$ROOT/Sources/LifeTrackerMac/Resources/searchIcon.png"

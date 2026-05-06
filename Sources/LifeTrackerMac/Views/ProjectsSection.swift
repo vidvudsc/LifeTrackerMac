@@ -4,18 +4,22 @@ struct ProjectsSection: View {
     @EnvironmentObject private var store: ActivityStore
 
     var body: some View {
-        Panel(title: "Project board", subtitle: "ranked by recent activity") {
+        DashboardPanel(title: "Project board", trailing: "ranked by recent activity") {
             if store.topProjects.isEmpty {
                 EmptyState(text: "No project activity in this range.")
             } else {
-                VStack(spacing: 8) {
-                    ForEach(store.topProjects.prefix(14), id: \.project) { row in
-                        MeterRow(
+                let total = max(store.topProjects.reduce(0) { $0 + $1.minutes }, 1)
+                VStack(spacing: 0) {
+                    ForEach(Array(store.topProjects.prefix(14).enumerated()), id: \.element.project) { index, row in
+                        TopUsageRow(
+                            icon: "folder.fill",
                             title: row.project,
-                            detail: "\(row.events) events",
-                            value: row.minutes,
-                            maxValue: store.topProjects.first?.minutes ?? 1
+                            minutes: row.minutes,
+                            percent: Int((Double(row.minutes) / Double(total) * 100).rounded())
                         )
+                        if index < min(store.topProjects.count, 14) - 1 {
+                            DashboardRowDivider()
+                        }
                     }
                 }
             }

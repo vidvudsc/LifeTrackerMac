@@ -2,79 +2,164 @@ import SwiftUI
 
 struct AppsSection: View {
     @EnvironmentObject private var store: ActivityStore
+    @State private var showAllApps = false
+    @State private var showAllProjects = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            Panel(title: "Foreground apps", subtitle: "screen focus") {
+        HStack(alignment: .top, spacing: 10) {
+            DashboardPanel(title: "Top Apps") {
+                UsageTableHeader()
                 if store.topApps.isEmpty {
                     EmptyState(text: "No app samples yet.")
                 } else {
-                    VStack(spacing: 8) {
-                        ForEach(store.topApps.prefix(10), id: \.app) { row in
-                            MeterRow(title: row.app, detail: "foreground", value: row.minutes, maxValue: store.topApps.first?.minutes ?? 1)
+                    let rows = Array(store.topApps.prefix(showAllApps ? 20 : 5))
+                    let total = max(store.topApps.reduce(0) { $0 + $1.minutes }, 1)
+                    VStack(spacing: 0) {
+                        ForEach(Array(rows.enumerated()), id: \.element.app) { index, row in
+                            TopUsageRow(
+                                icon: appIcon(row.app),
+                                title: row.app,
+                                minutes: row.minutes,
+                                percent: Int((Double(row.minutes) / Double(total) * 100).rounded())
+                            )
+                            if index < rows.count - 1 {
+                                DashboardRowDivider()
+                            }
+                        }
+                    }
+                }
+                if store.topApps.count > 5 {
+                    ShowAllButton(title: showAllApps ? "Show Less Apps" : "Show All Apps") {
+                        withAnimation(.snappy(duration: 0.18)) {
+                            showAllApps.toggle()
                         }
                     }
                 }
             }
 
-            Panel(title: "Recent switches", subtitle: "app name only") {
-                if store.recentAppSamples.isEmpty {
-                    EmptyState(text: "No app switches recorded yet.")
+            DashboardPanel(title: "Top Projects") {
+                UsageTableHeader()
+                if store.topProjects.isEmpty {
+                    EmptyState(text: "No project activity in this range.")
                 } else {
-                    VStack(spacing: 8) {
-                        ForEach(store.recentAppSamples.prefix(10)) { sample in
-                            HStack {
-                                Text(LTFormat.time.string(from: sample.date))
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 62, alignment: .leading)
-                                Text(sample.appName)
-                                    .font(.callout.weight(.semibold))
-                                Spacer()
+                    let rows = Array(store.topProjects.prefix(showAllProjects ? 20 : 5))
+                    let total = max(store.topProjects.reduce(0) { $0 + $1.minutes }, 1)
+                    VStack(spacing: 0) {
+                        ForEach(Array(rows.enumerated()), id: \.element.project) { index, row in
+                            TopUsageRow(
+                                icon: "folder.fill",
+                                title: row.project,
+                                minutes: row.minutes,
+                                percent: Int((Double(row.minutes) / Double(total) * 100).rounded())
+                            )
+                            if index < rows.count - 1 {
+                                DashboardRowDivider()
                             }
-                            .padding(10)
-                            .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                }
+                if store.topProjects.count > 5 {
+                    ShowAllButton(title: showAllProjects ? "Show Less Projects" : "Show All Projects") {
+                        withAnimation(.snappy(duration: 0.18)) {
+                            showAllProjects.toggle()
                         }
                     }
                 }
             }
         }
     }
+
+    private func appIcon(_ name: String) -> String {
+        let lower = name.lowercased()
+        if lower.contains("xcode") {
+            return "hammer.fill"
+        }
+        if lower.contains("code") || lower.contains("cursor") {
+            return "chevron.left.forwardslash.chevron.right"
+        }
+        if lower.contains("finder") {
+            return "face.smiling.fill"
+        }
+        if lower.contains("notes") {
+            return "note.text"
+        }
+        if lower.contains("safari") || lower.contains("chrome") || lower.contains("arc") {
+            return "globe"
+        }
+        return "app.fill"
+    }
 }
 
-struct MeterRow: View {
+struct ShowAllButton: View {
     var title: String
-    var detail: String
-    var value: Int
-    var maxValue: Int
+    var action: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.callout.weight(.semibold))
-                    Text(detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Text(LTFormat.minutes(value))
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.secondary)
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title)
+                Image(systemName: title.contains("Less") ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 9, weight: .bold))
             }
-            GeometryReader { proxy in
-                RoundedRectangle(cornerRadius: 999)
-                    .fill(AppTheme.meterTrack)
-                    .overlay(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 999)
-                            .fill(AppTheme.meterFill)
-                            .frame(width: proxy.size.width * CGFloat(value) / CGFloat(max(maxValue, 1)))
-                    }
-            }
-            .frame(height: 7)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .padding(12)
-        .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 8))
+        .buttonStyle(.plain)
+        .padding(.top, 4)
+    }
+}
+
+struct UsageTableHeader: View {
+    var body: some View {
+        HStack {
+            Text("")
+                .frame(width: 20)
+            Text("")
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("Time")
+                .frame(width: 72, alignment: .trailing)
+            Text("%")
+                .frame(width: 38, alignment: .trailing)
+        }
+        .font(.caption.weight(.bold))
+        .foregroundStyle(.secondary)
+    }
+}
+
+struct TopUsageRow: View {
+    var icon: String
+    var title: String
+    var minutes: Int
+    var percent: Int
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(AppTheme.lilac)
+                .frame(width: 20, height: 20)
+                .background(AppTheme.panelStrong, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+
+            Text(title)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(LTFormat.minutes(minutes))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .frame(width: 72, alignment: .trailing)
+
+            Text("\(percent)%")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .frame(width: 38, alignment: .trailing)
+        }
+        .padding(.vertical, 10)
     }
 }

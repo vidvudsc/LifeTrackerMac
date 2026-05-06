@@ -85,3 +85,98 @@ struct DashboardStats {
     var latestActivity: Date?
     var savedAt: Date?
 }
+
+struct DashboardRangeStats {
+    var totalMinutes: Int = 0
+    var focusMinutes: Int = 0
+    var codingMinutes: Int = 0
+    var previousTotalMinutes: Int = 0
+    var previousFocusMinutes: Int = 0
+    var previousCodingMinutes: Int = 0
+    var projectCount: Int = 0
+    var fileCount: Int = 0
+    var sessionCount: Int = 0
+    var averageEnergy: Int = 0
+
+    var focusShare: Int {
+        percentage(focusMinutes, of: totalMinutes)
+    }
+
+    var codingShare: Int {
+        percentage(codingMinutes, of: totalMinutes)
+    }
+
+    var totalDelta: Int {
+        percentageDelta(current: totalMinutes, previous: previousTotalMinutes)
+    }
+
+    var focusDelta: Int {
+        percentageDelta(current: focusMinutes, previous: previousFocusMinutes)
+    }
+
+    var codingDelta: Int {
+        percentageDelta(current: codingMinutes, previous: previousCodingMinutes)
+    }
+
+    private func percentage(_ value: Int, of total: Int) -> Int {
+        guard total > 0 else {
+            return 0
+        }
+        return Int((Double(value) / Double(total) * 100).rounded())
+    }
+
+    private func percentageDelta(current: Int, previous: Int) -> Int {
+        guard previous > 0 else {
+            return current > 0 ? 100 : 0
+        }
+        return Int(((Double(current - previous) / Double(previous)) * 100).rounded())
+    }
+}
+
+struct DailyEnergyPoint: Identifiable {
+    var id: Date { date }
+    var date: Date
+    var label: String
+    var monthLabel: String
+    var dayLabel: String
+    var score: Double
+    var minutes: Int
+    var events: Int
+    var files: Int
+    var changes: Int
+
+    var energyValue: Int {
+        Int(score.rounded())
+    }
+
+    var helpText: String {
+        "\(label): \(energyValue) energy, \(LTFormat.minutes(minutes)), \(events) events, \(files) files, \(changes) content changes"
+    }
+}
+
+struct HourlyEnergyPoint: Identifiable {
+    var id: Date { date }
+    var date: Date
+    var hourLabel: String
+    var score: Double
+    var minutes: Int
+    var events: Int
+    var files: Int
+    var changes: Int
+
+    var energyValue: Int {
+        Int(score.rounded())
+    }
+
+    var helpText: String {
+        "\(hourLabel): \(energyValue) energy, \(LTFormat.minutes(minutes)), \(events) events, \(files) files, \(changes) content changes"
+    }
+}
+
+struct DashboardInsight: Identifiable {
+    var id = UUID()
+    var systemImage: String
+    var title: String
+    var value: String
+    var detail: String
+}

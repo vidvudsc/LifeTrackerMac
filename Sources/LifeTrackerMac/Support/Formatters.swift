@@ -26,6 +26,12 @@ enum LTFormat {
         return formatter
     }()
 
+    static let hour: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "ha"
+        return formatter
+    }()
+
     static func minutes(_ value: Int) -> String {
         if value < 60 {
             return "\(value)m"
