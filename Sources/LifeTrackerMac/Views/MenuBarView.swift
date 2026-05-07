@@ -337,19 +337,33 @@ struct MenuActionButton: View {
     var systemImage: String
     var action: () -> Void
 
+    @State private var isHovered = false
+
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.caption.weight(.bold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 7)
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                Image(systemName: systemImage)
+                    .font(.system(size: 12, weight: .bold))
+                Text(title)
+                    .font(.caption.weight(.bold))
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, minHeight: 38)
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
         .buttonStyle(.plain)
-        .background(MenuBarTheme.button, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .foregroundStyle(isHovered ? Color.white : Color.primary)
+        .background(isHovered ? MenuBarTheme.buttonHover : MenuBarTheme.button, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .stroke(MenuBarTheme.line)
+                .stroke(isHovered ? MenuBarTheme.buttonHoverLine : MenuBarTheme.line)
         }
+        .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .animation(.easeOut(duration: 0.10), value: isHovered)
     }
 }
 
@@ -372,6 +386,8 @@ enum MenuBarTheme {
     )
     static let card = Color.white.opacity(0.075)
     static let button = Color.white.opacity(0.105)
+    static let buttonHover = AppTheme.lilac.opacity(0.24)
+    static let buttonHoverLine = AppTheme.lilac.opacity(0.42)
     static let line = Color.white.opacity(0.105)
 }
 
