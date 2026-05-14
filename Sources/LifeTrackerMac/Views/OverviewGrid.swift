@@ -210,7 +210,6 @@ struct EnergyAxisScale {
 struct EnergyGridLines: View {
     var body: some View {
         VStack {
-            gridLine
             Spacer()
             gridLine
             Spacer()
