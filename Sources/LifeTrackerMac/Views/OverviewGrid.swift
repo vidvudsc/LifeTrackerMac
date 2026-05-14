@@ -46,14 +46,14 @@ struct DailyEnergyChart: View {
 
     var body: some View {
         let values = store.dailyEnergyPoints(dayCount: store.selectedRangeDays)
-        let maxScore = max(values.map(\.score).max() ?? 100, 100)
+        let scale = EnergyAxisScale(values: values.map(\.score))
 
-        EnergyChartFrame {
+        EnergyChartFrame(scale: scale) {
             HStack(alignment: .bottom, spacing: 15) {
                 ForEach(values) { item in
                     EnergyBarColumn(
                         item: item,
-                        maxScore: maxScore,
+                        maxScore: scale.maxScore,
                         isHovered: hoveredDay == item.id
                     ) { isHovering in
                         withAnimation(.snappy(duration: 0.14)) {
@@ -98,14 +98,14 @@ struct HourlyEnergyChart: View {
 
     var body: some View {
         let values = store.hourlyEnergyPoints()
-        let maxScore = max(values.map(\.score).max() ?? 100, 100)
+        let scale = EnergyAxisScale(values: values.map(\.score))
 
-        EnergyChartFrame {
+        EnergyChartFrame(scale: scale) {
             HStack(alignment: .bottom, spacing: 5) {
                 ForEach(Array(values.enumerated()), id: \.element.id) { _, item in
                     HourlyEnergyBarColumn(
                         item: item,
-                        maxScore: maxScore,
+                        maxScore: scale.maxScore,
                         isHovered: hoveredHour == item.id
                     ) { isHovering in
                         withAnimation(.snappy(duration: 0.14)) {
@@ -150,15 +150,16 @@ struct HourlyEnergyChart: View {
 }
 
 struct EnergyChartFrame<Bars: View, Labels: View>: View {
+    var scale: EnergyAxisScale
     @ViewBuilder var bars: Bars
     @ViewBuilder var labels: Labels
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .trailing, spacing: 0) {
-                Text("100")
+                Text(scale.topLabel)
                 Spacer()
-                Text("50")
+                Text(scale.midLabel)
                 Spacer()
                 Text("0")
             }
@@ -177,6 +178,32 @@ struct EnergyChartFrame<Bars: View, Labels: View>: View {
                 labels
             }
         }
+    }
+}
+
+struct EnergyAxisScale {
+    var maxScore: Double
+
+    init(values: [Double]) {
+        let peak = values.max() ?? 0
+        maxScore = max(peak, 1)
+    }
+
+    var topLabel: String {
+        label(maxScore)
+    }
+
+    var midLabel: String {
+        label(maxScore / 2)
+    }
+
+    private func label(_ value: Double) -> String {
+        let rounded = Int(value.rounded())
+        if rounded >= 1000 {
+            let compact = Double(rounded) / 1000
+            return String(format: compact >= 10 ? "%.0fk" : "%.1fk", compact)
+        }
+        return "\(rounded)"
     }
 }
 
