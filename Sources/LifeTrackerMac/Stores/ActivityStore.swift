@@ -9,7 +9,11 @@ final class ActivityStore: ObservableObject {
     @Published private(set) var isTracking = false
     @Published private(set) var isScanning = false
     @Published private(set) var lastSavedAt: Date?
-    @Published var selectedRangeDays = 14
+    @Published var selectedRangeDays = 14 {
+        didSet {
+            clearDerivedCaches()
+        }
+    }
 
     let watchRoots: [URL] = [
         URL(fileURLWithPath: "/Users/vidvudscalitis/Desktop/CODING", isDirectory: true)
@@ -21,6 +25,14 @@ final class ActivityStore: ObservableObject {
     private var lastAppName = ""
     private var lastAppHeartbeat = Date.distantPast
     private let appInterval: TimeInterval = 15
+    private var archiveRevision = 0
+    private var sessionsCache: [DateRangeCacheKey: [WorkSession]] = [:]
+    private var topAppsCache: [DateRangeCacheKey: [(app: String, minutes: Int)]] = [:]
+    private var dailyEnergyCache: [DailyEnergyCacheKey: [DailyEnergyPoint]] = [:]
+    private var hourlyEnergyCache: [HourlyEnergyCacheKey: [HourlyEnergyPoint]] = [:]
+    private var recentEventsCache: [RangeStartCacheKey: [FileActivityEvent]] = [:]
+    private var recentContentChangesCache: [RangeStartCacheKey: [FileChangeSummary]] = [:]
+    private var recentAppSamplesCache: [RangeStartCacheKey: [AppFocusSample]] = [:]
 
     init() {
         load()
@@ -67,17 +79,35 @@ final class ActivityStore: ObservableObject {
     }
 
     var recentEvents: [FileActivityEvent] {
-        archive.events.filter { $0.date >= rangeStart }.sorted { $0.date > $1.date }
+        let key = RangeStartCacheKey(revision: archiveRevision, start: rangeStart)
+        if let cached = recentEventsCache[key] {
+            return cached
+        }
+        let rows = archive.events.filter { $0.date >= rangeStart }.sorted { $0.date > $1.date }
+        recentEventsCache[key] = rows
+        return rows
     }
 
     var recentContentChanges: [FileChangeSummary] {
-        archive.contentChanges.filter { $0.date >= rangeStart }.sorted { $0.date > $1.date }
+        let key = RangeStartCacheKey(revision: archiveRevision, start: rangeStart)
+        if let cached = recentContentChangesCache[key] {
+            return cached
+        }
+        let rows = archive.contentChanges.filter { $0.date >= rangeStart }.sorted { $0.date > $1.date }
+        recentContentChangesCache[key] = rows
+        return rows
     }
 
     var recentAppSamples: [AppFocusSample] {
-        archive.appSamples
+        let key = RangeStartCacheKey(revision: archiveRevision, start: rangeStart)
+        if let cached = recentAppSamplesCache[key] {
+            return cached
+        }
+        let rows = archive.appSamples
             .filter { $0.date >= rangeStart && isUserFacingAppName($0.appName) }
             .sorted { $0.date > $1.date }
+        recentAppSamplesCache[key] = rows
+        return rows
     }
 
     var topProjects: [(project: String, minutes: Int, events: Int)] {
@@ -137,6 +167,11 @@ final class ActivityStore: ObservableObject {
     }
 
     func topApps(from startDate: Date, to endDate: Date = Date()) -> [(app: String, minutes: Int)] {
+        let key = DateRangeCacheKey(revision: archiveRevision, start: startDate, end: endDate)
+        if let cached = topAppsCache[key] {
+            return cached
+        }
+
         var totals: [String: TimeInterval] = [:]
         let samples = archive.appSamples
             .filter { $0.date >= startDate && $0.date < endDate && isUserFacingAppName($0.appName) }
@@ -147,8 +182,11 @@ final class ActivityStore: ObservableObject {
             let duration = min(max(nextDate.timeIntervalSince(current.date), 0), 120)
             totals[current.appName, default: 0] += duration
         }
-        return totals.map { ($0.key, max(1, Int(($0.value / 60).rounded()))) }
-            .sorted { $0.minutes > $1.minutes }
+        let rows: [(app: String, minutes: Int)] = totals
+            .map { (app: $0.key, minutes: max(1, Int(($0.value / 60).rounded()))) }
+            .sorted { lhs, rhs in lhs.minutes > rhs.minutes }
+        topAppsCache[key] = rows
+        return rows
     }
 
     var insights: [String] {
@@ -321,6 +359,11 @@ final class ActivityStore: ObservableObject {
     }
 
     func sessions(from startDate: Date, to endDate: Date = Date()) -> [WorkSession] {
+        let key = DateRangeCacheKey(revision: archiveRevision, start: startDate, end: endDate)
+        if let cached = sessionsCache[key] {
+            return cached
+        }
+
         let rows = archive.events.filter { $0.date >= startDate && $0.date < endDate }.sorted { $0.date < $1.date }
         let grouped = Dictionary(grouping: rows, by: \.project)
         var output: [WorkSession] = []
@@ -339,13 +382,20 @@ final class ActivityStore: ObservableObject {
             }
         }
 
-        return output.sorted { $0.start > $1.start }
+        let sorted = output.sorted { $0.start > $1.start }
+        sessionsCache[key] = sorted
+        return sorted
     }
 
     func dailyEnergyPoints(dayCount requestedDayCount: Int? = nil) -> [DailyEnergyPoint] {
         let calendar = Calendar.current
         let dayCount = min(max(requestedDayCount ?? selectedRangeDays, 1), 30)
         let today = calendar.startOfDay(for: Date())
+        let key = DailyEnergyCacheKey(revision: archiveRevision, dayCount: dayCount, today: today)
+        if let cached = dailyEnergyCache[key] {
+            return cached
+        }
+
         let defaultStart = calendar.date(byAdding: .day, value: -dayCount + 1, to: today) ?? today
         let events = archive.events.sorted { $0.date > $1.date }
         let changes = archive.contentChanges.sorted { $0.date > $1.date }
@@ -359,7 +409,7 @@ final class ActivityStore: ObservableObject {
         }
         let sessions = sessions(from: startDay, to: calendar.date(byAdding: .day, value: dayCount, to: startDay) ?? Date())
 
-        return days.map { day in
+        let points = days.map { day in
             let nextDay = calendar.date(byAdding: .day, value: 1, to: day) ?? day
             let dayEvents = events.filter { $0.date >= day && $0.date < nextDay }
             let dayChanges = changes.filter { $0.date >= day && $0.date < nextDay }
@@ -383,16 +433,23 @@ final class ActivityStore: ObservableObject {
                 changes: dayChanges.count
             )
         }
+        dailyEnergyCache[key] = points
+        return points
     }
 
     func hourlyEnergyPoints(for day: Date = Date()) -> [HourlyEnergyPoint] {
         let calendar = Calendar.current
         let dayStart = calendar.startOfDay(for: day)
+        let key = HourlyEnergyCacheKey(revision: archiveRevision, dayStart: dayStart)
+        if let cached = hourlyEnergyCache[key] {
+            return cached
+        }
+
         let events = archive.events.sorted { $0.date > $1.date }
         let changes = archive.contentChanges.sorted { $0.date > $1.date }
         let sessions = sessions(from: dayStart, to: calendar.date(byAdding: .day, value: 1, to: dayStart) ?? Date())
 
-        return (0..<24).compactMap { offset in
+        let points: [HourlyEnergyPoint] = (0..<24).compactMap { offset in
             guard let hour = calendar.date(byAdding: .hour, value: offset, to: dayStart),
                   let nextHour = calendar.date(byAdding: .hour, value: 1, to: hour) else {
                 return nil
@@ -417,6 +474,8 @@ final class ActivityStore: ObservableObject {
                 changes: hourChanges.count
             )
         }
+        hourlyEnergyCache[key] = points
+        return points
     }
 
     private func session(project: String, events: [FileActivityEvent]) -> WorkSession {
@@ -450,6 +509,7 @@ final class ActivityStore: ObservableObject {
         lastAppName = name
         lastAppHeartbeat = now
         trimArchive()
+        markArchiveChanged()
         scheduleSave()
     }
 
@@ -479,6 +539,7 @@ final class ActivityStore: ObservableObject {
         }
         archive.events.append(contentsOf: newEvents)
         trimArchive()
+        markArchiveChanged()
         scheduleSave()
     }
 
@@ -571,6 +632,7 @@ final class ActivityStore: ObservableObject {
         }
         archive = decoded
         archive.events = archive.events.filter { $0.path.hasPrefix("/Users/vidvudscalitis/Desktop/CODING") }
+        markArchiveChanged()
         lastAppName = archive.appSamples.last?.appName ?? ""
         lastAppHeartbeat = archive.appSamples.last?.date ?? .distantPast
         lastSavedAt = fileModificationDate(archiveURL)
@@ -600,6 +662,21 @@ final class ActivityStore: ObservableObject {
 
     private func fileModificationDate(_ url: URL) -> Date? {
         (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate]) as? Date
+    }
+
+    private func markArchiveChanged() {
+        archiveRevision += 1
+        clearDerivedCaches()
+    }
+
+    private func clearDerivedCaches() {
+        sessionsCache.removeAll(keepingCapacity: true)
+        topAppsCache.removeAll(keepingCapacity: true)
+        dailyEnergyCache.removeAll(keepingCapacity: true)
+        hourlyEnergyCache.removeAll(keepingCapacity: true)
+        recentEventsCache.removeAll(keepingCapacity: true)
+        recentContentChangesCache.removeAll(keepingCapacity: true)
+        recentAppSamplesCache.removeAll(keepingCapacity: true)
     }
 
     private var latestUserFacingAppName: String? {
@@ -639,5 +716,53 @@ private extension JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder
+    }
+}
+
+private struct DateRangeCacheKey: Hashable {
+    var revision: Int
+    var startMinute: Int
+    var endMinute: Int
+
+    init(revision: Int, start: Date, end: Date) {
+        self.revision = revision
+        startMinute = Self.minuteBucket(start)
+        endMinute = Self.minuteBucket(end)
+    }
+
+    private static func minuteBucket(_ date: Date) -> Int {
+        Int((date.timeIntervalSinceReferenceDate / 60).rounded(.down))
+    }
+}
+
+private struct RangeStartCacheKey: Hashable {
+    var revision: Int
+    var startMinute: Int
+
+    init(revision: Int, start: Date) {
+        self.revision = revision
+        startMinute = Int((start.timeIntervalSinceReferenceDate / 60).rounded(.down))
+    }
+}
+
+private struct DailyEnergyCacheKey: Hashable {
+    var revision: Int
+    var dayCount: Int
+    var todayMinute: Int
+
+    init(revision: Int, dayCount: Int, today: Date) {
+        self.revision = revision
+        self.dayCount = dayCount
+        todayMinute = Int((today.timeIntervalSinceReferenceDate / 60).rounded(.down))
+    }
+}
+
+private struct HourlyEnergyCacheKey: Hashable {
+    var revision: Int
+    var dayStartMinute: Int
+
+    init(revision: Int, dayStart: Date) {
+        self.revision = revision
+        dayStartMinute = Int((dayStart.timeIntervalSinceReferenceDate / 60).rounded(.down))
     }
 }
